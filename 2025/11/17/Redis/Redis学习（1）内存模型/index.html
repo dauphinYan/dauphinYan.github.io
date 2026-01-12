@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>Redis学习（1）内存模型 - Orca丶的博客</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Orca丶的博客"><meta name="msapplication-TileImage" content="/img/favicon.ico"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Orca丶的博客"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="Redis学习之内存模型"><meta property="og:type" content="blog"><meta property="og:title" content="Redis学习（1）内存模型"><meta property="og:url" content="https://github.com/dauphinYan/dauphinYan.github.io.git/2025/11/17/Redis/Redis%E5%AD%A6%E4%B9%A0%EF%BC%881%EF%BC%89%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/"><meta property="og:site_name" content="Orca丶的博客"><meta property="og:description" content="Redis学习之内存模型"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215729356.png?imageSlim"><meta property="og:image" content="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215749848.png?imageSlim"><meta property="og:image" content="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215810061.png?imageSlim"><meta property="article:published_time" content="2025-11-17T13:47:10.000Z"><meta property="article:modified_time" content="2026-01-12T14:41:31.753Z"><meta property="article:author" content="Orca丶"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215729356.png?imageSlim"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://github.com/dauphinYan/dauphinYan.github.io.git/2025/11/17/Redis/Redis%E5%AD%A6%E4%B9%A0%EF%BC%881%EF%BC%89%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/"},"headline":"Redis学习（1）内存模型","image":[],"datePublished":"2025-11-17T13:47:10.000Z","dateModified":"2026-01-12T14:41:31.753Z","author":{"@type":"Person","name":"Orca丶"},"publisher":{"@type":"Organization","name":"Orca丶的博客","logo":{"@type":"ImageObject","url":"https://github.com/img/favicon.ico"}},"description":"Redis学习之内存模型"}</script><link rel="canonical" href="https://github.com/dauphinYan/dauphinYan.github.io.git/2025/11/17/Redis/Redis%E5%AD%A6%E4%B9%A0%EF%BC%881%EF%BC%89%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/"><link rel="icon" href="/img/favicon.ico"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link data-pjax rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link data-pjax rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><!--!--><!--!--><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@1.10.0/dist/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/css/justifiedGallery.min.css"><!--!--><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdn.jsdelivr.net/npm/pace-js@1.2.4/pace.min.js"></script><!--!--><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/favicon.ico" alt="Orca丶的博客" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">主页</a><a class="navbar-item" href="/archives">归档</a><a class="navbar-item" href="/categories">分类</a><a class="navbar-item" href="/">关于</a></div><div class="navbar-end"><a class="navbar-item" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/dauphinYan"><i class="fab fa-github"></i></a><a class="navbar-item is-hidden-tablet catalogue" title="目录" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-9-desktop is-9-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item"><time dateTime="2025-11-17T13:47:10.000Z" title="2025/11/17 21:47:10">2025-11-17</time>发表</span><span class="level-item"><time dateTime="2026-01-12T14:41:31.753Z" title="2026/1/12 22:41:31">2026-01-12</time>更新</span><span class="level-item"><a class="link-muted" href="/categories/Redis/">Redis</a></span></div></div><h1 class="title is-3 is-size-4-mobile">Redis学习（1）内存模型</h1><div class="content"><h2 id="一、Redis内存统计"><a href="#一、Redis内存统计" class="headerlink" title="一、Redis内存统计"></a>一、Redis内存统计</h2><p>客户端通过redis-cli命令连接服务器后，可通过<code>info memory</code>命令查看内存使用情况：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"># Memory</span><br><span class="line">used_memory:722264</span><br><span class="line">used_memory_human:705.34K</span><br><span class="line">used_memory_rss:682264</span><br><span class="line">used_memory_rss_human:666.27K</span><br><span class="line">used_memory_peak:723216</span><br><span class="line">used_memory_peak_human:706.27K</span><br><span class="line">used_memory_peak_perc:99.87%</span><br><span class="line">used_memory_overhead:711318</span><br><span class="line">used_memory_startup:661368</span><br><span class="line">used_memory_dataset:10946</span><br><span class="line">used_memory_dataset_perc:17.97%</span><br><span class="line">allocator_allocated:39440016</span><br><span class="line">allocator_active:511705088</span><br><span class="line">allocator_resident:520093696</span><br><span class="line">total_system_memory:0</span><br><span class="line">total_system_memory_human:0B</span><br><span class="line">used_memory_lua:37888</span><br><span class="line">used_memory_lua_human:37.00K</span><br><span class="line">used_memory_scripts:0</span><br><span class="line">used_memory_scripts_human:0B</span><br><span class="line">number_of_cached_scripts:0</span><br><span class="line">maxmemory:0</span><br><span class="line">maxmemory_human:0B</span><br><span class="line">maxmemory_policy:noeviction</span><br><span class="line">allocator_frag_ratio:12.97</span><br><span class="line">allocator_frag_bytes:472265072</span><br><span class="line">allocator_rss_ratio:1.02</span><br><span class="line">allocator_rss_bytes:8388608</span><br><span class="line">rss_overhead_ratio:0.00</span><br><span class="line">rss_overhead_bytes:-519411432</span><br><span class="line">mem_fragmentation_ratio:1.00</span><br><span class="line">mem_fragmentation_bytes:0</span><br><span class="line">mem_not_counted_for_evict:0</span><br><span class="line">mem_replication_backlog:0</span><br><span class="line">mem_clients_slaves:0</span><br><span class="line">mem_clients_normal:49950</span><br><span class="line">mem_aof_buffer:0</span><br><span class="line">mem_allocator:jemalloc-5.2.1-redis</span><br><span class="line">active_defrag_running:0</span><br><span class="line">lazyfree_pending_objects:0</span><br></pre></td></tr></table></figure>
+
+<p>重要参数介绍：</p>
+<ol>
+<li><p>used_memory：Redis分配器分配的内存总量（单位字节），包括使用的虚拟内存。used_memory_human方便人查看。</p>
+</li>
+<li><p>used_memory_rss：Redis进程占用操作系统大的内存（单位字节）。除了包含分配器分配的内存外，还包括进程运行本身需要的内存，但不包含虚拟内存。</p>
+</li>
+<li><p>used_memory_rss：内存碎片比率。计算方式：used_memory_rss &#x2F; used_memory。</p>
+</li>
+<li><p>mem_allocator：Redis使用的内存分配器，编译时指定，存在三种libc 、jemalloc或者tcmalloc，默认是jemalloc。</p>
+</li>
+</ol>
+<h2 id="二、Redis内存划分"><a href="#二、Redis内存划分" class="headerlink" title="二、Redis内存划分"></a>二、Redis内存划分</h2><h3 id="1-数据"><a href="#1-数据" class="headerlink" title="1. 数据"></a>1. 数据</h3><p>Redis作为数据库，数据是最主要的部分；这部分占用的内存会统计在used_memory中。</p>
+<p>Redis使用键值对存储数据，其中的值包括5种类型，即字符串、哈希、列表、集合、有序集合。在Redis内部，每种类型可能有2种或更多的内部编码实现；此外，Redis在存储对象时，并不是直接将数据扔进内存，而是会对对象进行包装：例如redisObject、SDS等。</p>
+<h3 id="2-进程本身运行需要的内存"><a href="#2-进程本身运行需要的内存" class="headerlink" title="2. 进程本身运行需要的内存"></a>2. 进程本身运行需要的内存</h3><p>Redis主进程本身运行肯定需要占用内存，如代码、常量池等等。这部分内存大约几兆，在大多数生产环境中与Redis数据占用的内存相比可以忽略。这部分内存不是由jemalloc分配，因此不会统计在used_memory中。</p>
+<p>除主进程外，Redis创建的子进程也会占用内存，如Redis执行AOF、RDB重写时创建的子进程。同样这部分占用的内存也不会统计在used_memory和used_memory_rss中。</p>
+<h3 id="3-缓冲内存"><a href="#3-缓冲内存" class="headerlink" title="3. 缓冲内存"></a>3. 缓冲内存</h3><p>缓冲内存包括客户端缓冲区、复制积压缓冲区、AOF缓冲区等，这部分内存由jemalloc分配，因此会统计在used_memory中。</p>
+<ul>
+<li>客户端缓冲区：每个客户端连接在 Redis 服务器端对应的输入缓冲区和输出缓冲区。</li>
+<li>复制挤压缓冲区：主节点专门为从节点准备的写命令历史记录缓存。主节点执行写命令时，不仅应用到自身数据，也会把这些写操作序列化成复制流，并写入这块缓冲区。</li>
+<li>AOF缓冲区：Redis 在开启AOF持久化时，用来暂存最近写命令的内存缓冲区。</li>
+</ul>
+<h3 id="4-内存碎片"><a href="#4-内存碎片" class="headerlink" title="4. 内存碎片"></a>4. 内存碎片</h3><p>内存碎片是在 Redis 分配和回收内存过程中产生的。当数据频繁修改、且对象大小差异较大时，Redis 释放的内存可能仍保留在内存分配器的内存池中，未立即归还给操作系统，也可能无法被后续对象有效利用，从而形成内存碎片。</p>
+<h2 id="三、Redis数据存储的细节"><a href="#三、Redis数据存储的细节" class="headerlink" title="三、Redis数据存储的细节"></a>三、Redis数据存储的细节</h2><h3 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h3><p>执行set hello world命令时涉及到的数据模型：</p>
+<p><img src="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215729356.png?imageSlim" alt="1174710-20180327001055927-1896197804"></p>
+<ol>
+<li><p>dictEntry：是Redis字典中存储键值对的基本单元。</p>
+<ul>
+<li>key：指向键的指针，键的类型是sds（redis自定义的字符串结构）。</li>
+<li>val：指向值的指针，这里值的类型是redisObject（redis所有数据类型的统一封装对象）。</li>
+<li>next：指向另一个dictEntry的指针，用于处理哈希冲突。</li>
+</ul>
+</li>
+<li><p>redisObject：Redis中所有数据（字符串、列表、哈希等）都通过redisObejct封装。</p>
+<ul>
+<li>type：标识对象的类型，这里是string。</li>
+<li>ptr：指向时机数据的指针。</li>
+</ul>
+</li>
+<li><p>Sds：Redis自定义的字符串实现，相比C原生字符串更高效（支持动态扩容、记录长度等）。</p>
+</li>
+</ol>
+<h3 id="2-Jemalloc"><a href="#2-Jemalloc" class="headerlink" title="2. Jemalloc"></a>2. Jemalloc</h3><p>Redis在编译时会指定内存分配器；内存分配器可以是 libc 、jemalloc或者tcmalloc，默认是jemalloc。</p>
+<p>jemalloc作为Redis的默认内存分配器，在减小内存碎片方面做的相对比较好。jemalloc在64位系统中，将内存空间划分为小、大、巨大三个范围；每个范围内又划分了许多小的内存块单位；当Redis存储数据时，会选择大小最合适的内存块进行存储。</p>
+<p>jemalloc划分的内存单元如下图所示：</p>
+<p><img src="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215749848.png?imageSlim" alt="img"></p>
+<p>因此，如果需要存储的对象大小为130字节，则会将其放入160字节的内存单元中。</p>
+<h3 id="3-RedisObject"><a href="#3-RedisObject" class="headerlink" title="3. RedisObject"></a>3. RedisObject</h3><p>前面有提到Redis中所有数据（字符串、列表、哈希等）都通过redisObejct封装。</p>
+<p>redisObject的定义如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">redisObject</span> &#123;</span><br><span class="line">　　<span class="type">unsigned</span> type:<span class="number">4</span>;</span><br><span class="line">　　<span class="type">unsigned</span> encoding:<span class="number">4</span>;</span><br><span class="line">　　<span class="type">unsigned</span> lru:REDIS_LRU_BITS; <span class="comment">/* lru time (relative to server.lruclock) */</span></span><br><span class="line">　　<span class="type">int</span> refcount;</span><br><span class="line">　　<span class="type">void</span> *ptr;</span><br><span class="line">&#125; robj;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>unsigned type:4：用于标识当前对象的数据类型，Redis支持的核心类型包括：REDIS_STRING（字符串）、REDIS_LIST（列表）、REDIS_HASH（哈希）、REDIS_SET（集合）。4位二进制可表示16种类型，预留了拓展空间。</li>
+<li>unsigned encoding:4：标识对象的底层存储结构（Redis 对同一种数据类型可能采用多种编码以优化性能）。例如：<ul>
+<li>字符串类型（type&#x3D;REDIS_STRING）的编码可能是：<ul>
+<li>REDIS_ENCODING_RAW（原生 SDS，存储长字符串）</li>
+<li>REDIS_ENCODING_INT（直接存储整数，避免 SDS 开销）</li>
+</ul>
+</li>
+<li>列表类型（type&#x3D;REDIS_LIST）的编码可能是：<ul>
+<li>REDIS_ENCODING_ZIPLIST（压缩列表，适合小数据）</li>
+<li>REDIS_ENCODING_LINKEDLIST（双向链表，适合大数据）。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>unsigned lru:REDIS_LRU_BITS：用于记录对象的最近访问时间，配合 Redis 的内存淘汰策略。</li>
+<li>int refcount：引用计数，用于内存管理的垃圾回收机制。</li>
+<li>void *ptr：指向对象的实际存储数据，具体指向的结构由 encoding 决定：<ul>
+<li>若 encoding&#x3D;REDIS_ENCODING_INT，ptr 直接指向整数（通过指针强转存储，节省空间）。</li>
+<li>若 encoding&#x3D;REDIS_ENCODING_RAW，ptr 指向 sds 结构体（字符串）。</li>
+<li>若 encoding&#x3D;REDIS_ENCODING_ZIPLIST，ptr 指向压缩列表的起始地址。</li>
+</ul>
+</li>
+</ul>
+<p>因此，每个redisObject所占大小是4bit+4bit+24bit+4Byte+8Byte&#x3D;16Byte。</p>
+<h3 id="4-SDS"><a href="#4-SDS" class="headerlink" title="4. SDS"></a>4. SDS</h3><p>sds用于存储字符串，结构如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">sdshdr</span> &#123;</span><br><span class="line">    <span class="type">int</span> len;</span><br><span class="line">    <span class="type">int</span> free;</span><br><span class="line">    <span class="type">char</span> buf[];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>参数说明：len表示buf已使用的长度、free表示buf未使用的长度、buf表示字节数组。</p>
+<p>因此，每个sds所占的大小是4+4+len+free+1(Byte)</p>
+<p>对比C字符串：</p>
+<ul>
+<li>获取字符串长度：时间复杂度SDS是O(1)，C字符串是O(n)。</li>
+<li>缓冲区溢出：对于C字符串，用strcat方法往字符串中添加字符，如原先分配给字符串的空间不够，会导致缓冲区溢出；对于SDS会检测空间是否足够，如空间不足会自动扩容。</li>
+<li>字符串修改内存重分配：对于C字符串，如果字符串变长，那么需要重新分配内存，字符串变短，不重新分配内存造成内存浪费；对于SDS，在扩容时会分配更多的空间，以减少realloc的次数，并且遵循惰性空间释放策略，减少缩容的频率，以提高性能。</li>
+<li>存取二进制数据：对于C字符串，通常以空字符作为字符串结束的标志，对于一些二进制文件，内容可能包含空字符，因而C字符串无法正确读取；对于SDS则是根据len作为字符串结束标志，很好的避免了这个问题。</li>
+</ul>
+<h2 id="四、Redis的对象类型与内部编码"><a href="#四、Redis的对象类型与内部编码" class="headerlink" title="四、Redis的对象类型与内部编码"></a>四、Redis的对象类型与内部编码</h2><p>前面已经提到，Redis支持5种对象类型，每种结构都有至少两种编码。好处是对于开发者来说，使用Redis只需要面对统一的命令和数据类型（如字符串、列表、哈希），不用关心其底层采用哪种编码；另一方面，可以根据不同的应用场景选用不同的内部编码，以提高效率。</p>
+<h3 id="1-字符串"><a href="#1-字符串" class="headerlink" title="1. 字符串"></a>1. 字符串</h3><h4 id="1-1-概况"><a href="#1-1-概况" class="headerlink" title="1.1 概况"></a>1.1 概况</h4><p>字符串是最基础的类型，所有的键都是字符串类型，其长度不能超过512MB。</p>
+<h4 id="1-2-内部编码"><a href="#1-2-内部编码" class="headerlink" title="1.2 内部编码"></a>1.2 内部编码</h4><p>字符串类型的内部编码有3种：</p>
+<ul>
+<li>int：8个字节的长整型（注意不是4字节）。字符串值是整型时，这个值使用long整型表示。</li>
+<li>embstr：&lt;&#x3D;39字节的字符串。</li>
+<li>raw：&gt;39字节的字符串。</li>
+</ul>
+<p>embstr与raw都使用redisObject和sds保存数据，区别在于，embstr只分配一次内存空间，只读，而raw需要分配两次内存空间，但可修改。</p>
+<p>注意：如果采用embstr编码，Redis会一次性申请一块连续空间，例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">| redisObject | sds 头部 | &quot;Tom\0&quot; |</span><br></pre></td></tr></table></figure>
+
+<p>如果采用raw编码，则会分别申请redisObject与sds两块内存，例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redisObject ---&gt; 指向 ---&gt; | sds头部 | &quot;This is a very very long string ...&quot; |</span><br></pre></td></tr></table></figure>
+
+<h4 id="1-3-编码转换"><a href="#1-3-编码转换" class="headerlink" title="1.3 编码转换"></a>1.3 编码转换</h4><ul>
+<li>当int数据不再是整数或者大小超过long的范围时，则自动转换为raw。</li>
+<li>对于embstr，由于其是只读的，因此在修改时，需要先将其转换为raw再修改。</li>
+</ul>
+<h3 id="2-列表"><a href="#2-列表" class="headerlink" title="2. 列表"></a>2. 列表</h3><h4 id="2-1-概况"><a href="#2-1-概况" class="headerlink" title="2.1 概况"></a>2.1 概况</h4><p>列表用来存储多个有序的字符串，每个字符串称为元素；一个列表可以存储2^32-1个元素。Redis中的列表支持两端插入与删除。</p>
+<h4 id="2-2-内部编码"><a href="#2-2-内部编码" class="headerlink" title="2.2 内部编码"></a>2.2 内部编码</h4><p>列表内部编码有两种：</p>
+<ul>
+<li>双端链表。</li>
+<li>压缩列表，是Redis为了节约内存而开发的，由一系列特殊编码的连续内存块组成的顺序型数据结构，因而修改与增删操作的效率低，常用于节点数量少的情况。</li>
+</ul>
+<h4 id="2-3-编码转换"><a href="#2-3-编码转换" class="headerlink" title="2.3 编码转换"></a>2.3 编码转换</h4><p>使用压缩列表的条件（需同时满足）：</p>
+<ol>
+<li>列表中所有字符串对象都不超过64字节。</li>
+<li>列表中元素数量小于512个。</li>
+</ol>
+<p>如果不满足则采用双端链表，编码只可能由压缩列表转换为双端链表，反方向则不可能。</p>
+<h3 id="3-哈希"><a href="#3-哈希" class="headerlink" title="3. 哈希"></a>3. 哈希</h3><h4 id="3-1-概况"><a href="#3-1-概况" class="headerlink" title="3.1 概况"></a>3.1 概况</h4><p>哈希不仅是Redis对外提供的5种对象类型的一种，也是Redis作为Key-Value数据库所使用的数据结构。为方便区分，“内层的哈希”表示redis对外提供的5种对象类型的一种，“外层的哈希”表示Redis作为Key-Value数据库使用的数据结构。</p>
+<h4 id="3-2-内部编码"><a href="#3-2-内部编码" class="headerlink" title="3.2 内部编码"></a>3.2 内部编码</h4><p>内层的哈希使用的内部编码可以是压缩列表和哈希表两种，外层的哈希只使用了哈希表。</p>
+<p>压缩列表相较于哈希表，适用于元素个数少，元素长度小的场景，优势在于集中存储，节省空间；当元素较少时，与哈希表相比没有明显劣势。</p>
+<p>哈希表：一个哈希表由一个dict结构，两个dictht结构，一个dictEntry指针数组和多个dictEntry结构组成，可见下图：</p>
+<p><img src="https://blog-1314504743.cos.ap-nanjing.myqcloud.com/20251117215810061.png?imageSlim" alt="img"></p>
+<p><strong>dictEntry</strong></p>
+<p>dictEntry用于保存键值对，结构定义如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">dictEntry</span>&#123;</span><br><span class="line">    <span class="type">void</span> *key;</span><br><span class="line">    <span class="keyword">union</span>&#123;</span><br><span class="line">        <span class="type">void</span> *val;</span><br><span class="line">        uint64_tu64;</span><br><span class="line">        int64_ts64;</span><br><span class="line">    &#125;v;</span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">dictEntry</span> *next;</span><br><span class="line">&#125;dictEntry;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>key：键。</li>
+<li>val：值，基于union实现，存储的内容可能是：一个指向值的指针，64位整型，无符号64位整型。</li>
+<li>next：指向的下一个dictEntry，主要用于解决哈希冲突。</li>
+</ul>
+<p>在64位的操作系统中，一个dictEntry对象占24字节。</p>
+<p><strong>bucket</strong></p>
+<p>bucket是一个数组，存储这dictEntry结构的指针。bucket大小按照大于dictEntry的、最小的2^n的规则计算。</p>
+<p><strong>dictht</strong></p>
+<p>dictht结构如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">dictht</span>&#123;</span><br><span class="line">    dictEntry **table;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">long</span> size;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">long</span> sizemask;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">long</span> used;</span><br><span class="line">&#125;dictht;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>table：指针，指向bucket。</li>
+<li>size：记录bucket的大小。</li>
+<li>sizemask：size-1。</li>
+<li>used：记录已使用的dictEntry数量。</li>
+</ul>
+<p><strong>dict</strong></p>
+<p>一般来说，使用dictht和dictEntry已经足够实现哈希表的功能，但在Redis实现中，dictht上层还存在dict结构，dict结构定义如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">dict</span>&#123;</span><br><span class="line">    dictType *type;</span><br><span class="line">    <span class="type">void</span> *privdata;</span><br><span class="line">    dictht ht[<span class="number">2</span>];</span><br><span class="line">    <span class="type">int</span> trehashidx;</span><br><span class="line">&#125; dict;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>type：dictType定义了一簇用于操作特定类型键值对的函数。</li>
+<li>privdata：</li>
+<li>ht[2]：字典的核心，包含两个dictht结构的数组。使用两个哈希表的目的是支持渐进式rehash。<ul>
+<li>ht[0]：平时使用的哈希表。</li>
+<li>ht[1]：仅在rehash过程中使用。</li>
+</ul>
+</li>
+<li>trehashidx：用于指示当前是否在进行rehash。-1表示没有进行rehash操作，非-1表示正在进行，其值表示下一个需要从ht[0]迁移到ht[1]的哈希表数组索引。</li>
+</ul>
+<p>当ht[0]的负载因子超过某个阈值时，字典需要扩容以避免哈希冲突过于频繁，这时Redis会分配一个更大的ht[1]（通常是ht[0]的两倍），之后将 rehashidx 设置为 0，表示开始 rehash。在后续的每次字典操作（如 dictAdd, dictFind, dictDelete 等）中，除了执行指定的操作外，还会顺带将 ht[0] 中 rehashidx 索引上的所有 dictEntry 迁移到 ht[1]。迁移完成后，rehashidx 自增。当所有 ht[0] 的数据都迁移到 ht[1] 后，ht[0] 和 ht[1] 互换角色，ht[1] 变为新的空哈希表，rehashidx 设为 -1，表示 rehash 结束。</p>
+<h4 id="3-3-编码转换"><a href="#3-3-编码转换" class="headerlink" title="3.3 编码转换"></a>3.3 编码转换</h4><p>内层的哈希可使用压缩列表也可使用哈希表。</p>
+<p>使用压缩列表需满足的条件如下：</p>
+<ol>
+<li>哈希中元素数量小于512个；</li>
+<li>哈希中所有键值对的键和值字符串长度都小于64字节。</li>
+</ol>
+<p>任何一项不满足则使用哈希表，编码只可能从压缩列表转换为哈希表。</p>
+<h3 id="4-集合"><a href="#4-集合" class="headerlink" title="4. 集合"></a>4. 集合</h3><h4 id="4-1-概况"><a href="#4-1-概况" class="headerlink" title="4.1 概况"></a>4.1 概况</h4><p>集合（set）与列表类似，都是用来保存多个字符串，但集合与列表有两点不同：集合中的元素是无序的，因此不能通过索引来操作元素；集合中的元素不能重复。</p>
+<p>一个集合中最多可以存储2^32-1个元素；除了支持常规的增删改查，Redis还支持多个集合取交集、并集、差集。</p>
+<h4 id="4-2-内部编码"><a href="#4-2-内部编码" class="headerlink" title="4.2 内部编码"></a>4.2 内部编码</h4><p>集合的内部编码可以是整数集合（intset）或哈希表（hashtable）。哈希表前面已经提到，下面介绍整数集合。</p>
+<p>整数集合的结构定义如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">intset</span>&#123;</span><br><span class="line">    <span class="type">uint32_t</span> encoding;</span><br><span class="line">    <span class="type">uint32_t</span> length;</span><br><span class="line">    <span class="type">int8_t</span> contents[];</span><br><span class="line">&#125; intset;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>encoding：记录contents数组中元素的编码方式，它决定了每个元素占用的字节数。Redis支持三种编码：<ul>
+<li>INTSET_ENC_INT16<ul>
+<li>每个元素是一个 16 位有符号整数（int16_t）。</li>
+<li>当集合中所有元素都在这个范围内时，使用此编码。</li>
+</ul>
+</li>
+<li>INTSET_ENC_INT32<ul>
+<li>每个元素是一个 32 位有符号整数（int32_t）。</li>
+<li>当集合中出现超出int16_t范围，但仍在int32_t范围内的元素时，会触发 “升级”，将所有元素都转换为int32_t编码。</li>
+</ul>
+</li>
+<li>INTSET_ENC_INT64<ul>
+<li>每个元素是一个 64 位有符号整数（int64_t）。</li>
+<li>当集合中出现超出 int32_t 范围的元素时，会再次触发升级，将所有元素转换为int64_t编码。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>length：表示元素个数。</li>
+<li>contents[]：实际存储的类型是int16_t、int32_t、int64_t，由encoding决定。</li>
+</ul>
+<h4 id="4-3-编码转换"><a href="#4-3-编码转换" class="headerlink" title="4.3 编码转换"></a>4.3 编码转换</h4><p>使用整数集合需同时满足以下条件：</p>
+<ol>
+<li>集合中元素数量小于512。</li>
+<li>集合中所有元素都是整数值。</li>
+</ol>
+<p>任何一个条件不满足则使用哈希表，只可能能从整数集合转换为哈希表，反方向则不可能。</p>
+<h3 id="5-有序集合"><a href="#5-有序集合" class="headerlink" title="5. 有序集合"></a>5. 有序集合</h3><h4 id="5-1-概况"><a href="#5-1-概况" class="headerlink" title="5.1 概况"></a>5.1 概况</h4><p>有序集合与集合一样，元素不能重复，但元素是有序的，其排序方式取决于每个元素的分数。</p>
+<h4 id="5-2-内部编码"><a href="#5-2-内部编码" class="headerlink" title="5.2 内部编码"></a>5.2 内部编码</h4><p>有序集合的内部编码可以是压缩列表（ziplist）或跳跃表（skiplist）。ziplist前面已经提到过，这里主要介绍跳跃表。</p>
+<p>跳跃表是一种有序数据结构，通过在每个节点中维持多个指向其他节点的指针，从而达到快速访问节点的目的。除了跳跃表，实现有序数据结构的另一种典型实现是平衡树，但大多数情况下，跳跃表的效率可以和平衡树媲美，且跳跃表实现比平衡树简单很多，因此redis中选用跳跃表代替平衡树。跳跃表支持平均O(logN)、最坏O(N)的复杂点进行节点查找，并支持顺序操作。Redis的跳跃表实现由zskiplist和zskiplistNode两个结构组成：前者用于保存跳跃表信息（如头结点、尾节点、长度等），后者用于表示跳跃表节点。</p>
+<h4 id="5-3-编码转换"><a href="#5-3-编码转换" class="headerlink" title="5.3 编码转换"></a>5.3 编码转换</h4><p>使用压缩列表需同时满足以下条件：</p>
+<ol>
+<li>有序集合中元素数量小于128个。</li>
+<li>有序集合中所有成员长度都不足64字节。</li>
+</ol>
+<p>如果有一个条件不满足，则使用跳跃表，且编码只可能由压缩列表转化为跳跃表，反方向则不可能。</p>
+</div><!--!--></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2025/11/09/java/Redis/"><span class="level-item">Redis学习（1）</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--></div><div class="column column-left is-4-tablet is-3-desktop is-3-widescreen  order-1 is-sticky"><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/Hinami-Aoi.jpg" alt="Orca丶"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">Orca丶</p><p class="is-size-6 is-block">爱开发游戏的菜鸟一枚</p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">5</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">4</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">0</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/dauphinYan" target="_blank" rel="me noopener">关注我</a></div><div class="level is-mobile is-multiline"><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="Github" href="https://github.com/dauphinYan"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="RSS" href="/"><i class="fas fa-rss"></i></a></div></div></div><div class="card widget" id="toc" data-type="toc"><div class="card-content"><div class="menu"><h3 class="menu-label">目录</h3><ul class="menu-list"><li><a class="level is-mobile" href="#一、Redis内存统计"><span class="level-left"><span class="level-item">一、Redis内存统计</span></span></a></li><li><a class="level is-mobile" href="#二、Redis内存划分"><span class="level-left"><span class="level-item">二、Redis内存划分</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#1-数据"><span class="level-left"><span class="level-item">1. 数据</span></span></a></li><li><a class="level is-mobile" href="#2-进程本身运行需要的内存"><span class="level-left"><span class="level-item">2. 进程本身运行需要的内存</span></span></a></li><li><a class="level is-mobile" href="#3-缓冲内存"><span class="level-left"><span class="level-item">3. 缓冲内存</span></span></a></li><li><a class="level is-mobile" href="#4-内存碎片"><span class="level-left"><span class="level-item">4. 内存碎片</span></span></a></li></ul></li><li><a class="level is-mobile" href="#三、Redis数据存储的细节"><span class="level-left"><span class="level-item">三、Redis数据存储的细节</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#1-概述"><span class="level-left"><span class="level-item">1. 概述</span></span></a></li><li><a class="level is-mobile" href="#2-Jemalloc"><span class="level-left"><span class="level-item">2. Jemalloc</span></span></a></li><li><a class="level is-mobile" href="#3-RedisObject"><span class="level-left"><span class="level-item">3. RedisObject</span></span></a></li><li><a class="level is-mobile" href="#4-SDS"><span class="level-left"><span class="level-item">4. SDS</span></span></a></li></ul></li><li><a class="level is-mobile" href="#四、Redis的对象类型与内部编码"><span class="level-left"><span class="level-item">四、Redis的对象类型与内部编码</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#1-字符串"><span class="level-left"><span class="level-item">1. 字符串</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#1-1-概况"><span class="level-left"><span class="level-item">1.1 概况</span></span></a></li><li><a class="level is-mobile" href="#1-2-内部编码"><span class="level-left"><span class="level-item">1.2 内部编码</span></span></a></li><li><a class="level is-mobile" href="#1-3-编码转换"><span class="level-left"><span class="level-item">1.3 编码转换</span></span></a></li></ul></li><li><a class="level is-mobile" href="#2-列表"><span class="level-left"><span class="level-item">2. 列表</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#2-1-概况"><span class="level-left"><span class="level-item">2.1 概况</span></span></a></li><li><a class="level is-mobile" href="#2-2-内部编码"><span class="level-left"><span class="level-item">2.2 内部编码</span></span></a></li><li><a class="level is-mobile" href="#2-3-编码转换"><span class="level-left"><span class="level-item">2.3 编码转换</span></span></a></li></ul></li><li><a class="level is-mobile" href="#3-哈希"><span class="level-left"><span class="level-item">3. 哈希</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#3-1-概况"><span class="level-left"><span class="level-item">3.1 概况</span></span></a></li><li><a class="level is-mobile" href="#3-2-内部编码"><span class="level-left"><span class="level-item">3.2 内部编码</span></span></a></li><li><a class="level is-mobile" href="#3-3-编码转换"><span class="level-left"><span class="level-item">3.3 编码转换</span></span></a></li></ul></li><li><a class="level is-mobile" href="#4-集合"><span class="level-left"><span class="level-item">4. 集合</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#4-1-概况"><span class="level-left"><span class="level-item">4.1 概况</span></span></a></li><li><a class="level is-mobile" href="#4-2-内部编码"><span class="level-left"><span class="level-item">4.2 内部编码</span></span></a></li><li><a class="level is-mobile" href="#4-3-编码转换"><span class="level-left"><span class="level-item">4.3 编码转换</span></span></a></li></ul></li><li><a class="level is-mobile" href="#5-有序集合"><span class="level-left"><span class="level-item">5. 有序集合</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#5-1-概况"><span class="level-left"><span class="level-item">5.1 概况</span></span></a></li><li><a class="level is-mobile" href="#5-2-内部编码"><span class="level-left"><span class="level-item">5.2 内部编码</span></span></a></li><li><a class="level is-mobile" href="#5-3-编码转换"><span class="level-left"><span class="level-item">5.3 编码转换</span></span></a></li></ul></li></ul></li></ul></div></div><style>#toc .menu-list > li > a.is-active + .menu-list { display: block; }#toc .menu-list > li > a + .menu-list { display: none; }</style><script src="/js/toc.js" defer></script></div><div class="card widget" data-type="categories"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile" href="/categories/Java/"><span class="level-start"><span class="level-item">Java</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul><li><a class="level is-mobile" href="/categories/Java/Java8-%E6%96%B0%E7%89%B9%E6%80%A7/"><span class="level-start"><span class="level-item">Java8 新特性</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile" href="/categories/Redis/"><span class="level-start"><span class="level-item">Redis</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile" href="/categories/%E8%B5%9B%E5%B0%94%E5%8F%B7%E9%80%86%E5%90%91/"><span class="level-start"><span class="level-item">赛尔号逆向</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></div></div></div><div class="card widget" data-type="recent-posts"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-11-17T13:47:10.000Z">2025-11-17</time></p><p class="title"><a href="/2025/11/17/Redis/Redis%E5%AD%A6%E4%B9%A0%EF%BC%881%EF%BC%89%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/">Redis学习（1）内存模型</a></p><p class="categories"><a href="/categories/Redis/">Redis</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-11-09T06:53:28.000Z">2025-11-09</time></p><p class="title"><a href="/2025/11/09/java/Redis/">Redis学习（1）</a></p><p class="categories"><a href="/categories/Redis/">Redis</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-08-24T05:06:27.000Z">2025-08-24</time></p><p class="title"><a href="/2025/08/24/java/Java-Stream/">Java Stream</a></p><p class="categories"><a href="/categories/Java/">Java</a> / <a href="/categories/Java/Java8-%E6%96%B0%E7%89%B9%E6%80%A7/">Java8 新特性</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-07-03T07:47:54.000Z">2025-07-03</time></p><p class="title"><a href="/2025/07/03/game-reversing/network-protocol-reversing/">赛尔号逆向：封包分析</a></p><p class="categories"><a href="/categories/%E8%B5%9B%E5%B0%94%E5%8F%B7%E9%80%86%E5%90%91/">赛尔号逆向</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-02-13T09:56:21.000Z">2025-02-13</time></p><p class="title"><a href="/2025/02/13/Note/">随记</a></p></div></article></div></div></div><!--!--></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/favicon.ico" alt="Orca丶的博客" height="28"></a><p class="is-size-7"><span>&copy; 2026 Orca丶</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/ppoffice/hexo-theme-icarus"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script data-pjax src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script data-pjax src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.js" defer></script><script>window.addEventListener("load", () => {
+      window.cookieconsent.initialise({
+        type: "info",
+        theme: "edgeless",
+        static: false,
+        position: "bottom-left",
+        content: {
+          message: "此网站使用Cookie来改善您的体验。",
+          dismiss: "知道了！",
+          allow: "允许使用Cookie",
+          deny: "拒绝",
+          link: "了解更多",
+          policy: "Cookie政策",
+          href: "https://www.cookiesandyou.com/",
+        },
+        palette: {
+          popup: {
+            background: "#edeff5",
+            text: "#838391"
+          },
+          button: {
+            background: "#4b81e8"
+          },
+        },
+      });
+    });</script><script src="https://cdn.jsdelivr.net/npm/lightgallery@1.10.0/dist/js/lightgallery.min.js" defer></script><script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script src="/js/pjax.js"></script><!--!--><!--!--><!--!--><script data-pjax src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
